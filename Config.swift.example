@@ -1,0 +1,8 @@
+import Foundation
+
+// Copy this file to NUScores/Config.swift (remove the ".example" ending) and fill in your values.
+// Config.swift is listed in .gitignore, so your real key never goes into git.
+enum Config {
+    static let baseURL = "https://YOUR-WORKER-NAME.YOUR-SUBDOMAIN.workers.dev"
+    static let adminKey = "PASTE_YOUR_ADMIN_KEY_HERE"
+}
