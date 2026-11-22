@@ -1,9 +1,10 @@
 import SwiftUI
 
-@main struct MyApp: App {
+@main
+struct NUScoresApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomeView()
         }
     }
 }
