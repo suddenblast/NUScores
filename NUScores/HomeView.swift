@@ -52,11 +52,6 @@ struct HomeView: View {
     }
 }
 
-extension Game: Hashable {
-    static func == (l: Game, r: Game) -> Bool { l.id == r.id }
-    func hash(into h: inout Hasher) { h.combine(id) }
-}
-
 struct LiveCard: View {
     let game: Game
     var body: some View {
@@ -91,7 +86,9 @@ struct UpcomingRow: View {
         HStack {
             VStack(alignment: .leading) {
                 Text("vs \(game.opponent)")
-                Text(game.sport.rawValue).font(.caption).foregroundStyle(.secondary)
+                Text([game.sport.rawValue, game.venue.components(separatedBy: " · ").last ?? ""]
+                        .filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             if let s = game.start {

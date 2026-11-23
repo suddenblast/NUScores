@@ -1,10 +1,5 @@
 import SwiftUI
 
-extension Color {
-    static let nuPurple = Color(red: 0x4E / 255, green: 0x2A / 255, blue: 0x84 / 255)
-    static let oppNavy = Color(red: 0x0C / 255, green: 0x23 / 255, blue: 0x40 / 255)
-}
-
 enum Sport: String {
     case fieldHockey = "Field hockey"
     case lacrosse = "Lacrosse"
@@ -30,6 +25,7 @@ struct Goal: Identifiable {
     let timeLeft: String   // "12:20 left"
     let nuScore: Int
     let oppScore: Int
+    var scorer: String = ""    // "Kiera Sack"; empty until the play-by-play has it
 }
 
 struct Game: Identifiable {
@@ -47,9 +43,17 @@ struct Game: Identifiable {
     let lines: [LineScore]
     let goals: [Goal]
     var oppColorHex: String? = nil
+    var venue: String = ""
+    var venueCity: String = ""
+    var venueState: String = ""
 }
 
 extension Game {
     var oppColor: Color { Color(hex: oppColorHex) ?? .gray }
-    
+}
+
+// Games are identified by id alone (the Worker's copy is newer than any older one with the same id).
+extension Game: Hashable {
+    static func == (l: Game, r: Game) -> Bool { l.id == r.id }
+    func hash(into h: inout Hasher) { h.combine(id) }
 }

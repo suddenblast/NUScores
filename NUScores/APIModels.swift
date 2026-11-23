@@ -1,5 +1,14 @@
 import Foundation
 
+extension Config {
+    /// Worker URL for a path like "/games", with the admin key attached.
+    static func url(_ path: String) -> URL? {
+        var comps = URLComponents(string: baseURL + path)
+        comps?.queryItems = [URLQueryItem(name: "key", value: adminKey)]
+        return comps?.url
+    }
+}
+
 // JSON shapes served by the Worker's /games page, and their conversion into the app's Game model.
 struct GameDTO: Decodable {
     struct Line: Decodable { let period: String; let nu: Int; let opp: Int }
@@ -7,6 +16,7 @@ struct GameDTO: Decodable {
         let nuScored: Bool
         let period: String
         let timeLeft: String
+        let scorer: String?   // missing in older Worker responses
         let nuScore: Int
         let oppScore: Int
     }
@@ -26,6 +36,9 @@ struct GameDTO: Decodable {
     let lines: [Line]
     let goals: [GoalItem]
     let updatedAt: String?
+    let venue: String?
+    let venueCity: String?
+    let venueState: String?
 }
 
 private func parseISO(_ s: String?) -> Date? {
@@ -58,9 +71,13 @@ extension GameDTO {
             goals: goals.map {
                 Goal(nuScored: $0.nuScored, period: $0.period,
                      timeLeft: $0.timeLeft.isEmpty ? "" : "\($0.timeLeft) left",
-                     nuScore: $0.nuScore, oppScore: $0.oppScore)
+                     nuScore: $0.nuScore, oppScore: $0.oppScore,
+                     scorer: $0.scorer ?? "")
             },
-            oppColorHex: oppColor
+            oppColorHex: oppColor,
+            venue: venue ?? "",
+            venueCity: venueCity ?? "",
+            venueState: venueState ?? ""
         )
     }
 

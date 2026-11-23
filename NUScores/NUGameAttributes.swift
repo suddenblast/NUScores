@@ -3,6 +3,7 @@ import Foundation
 import SwiftUI
 
 // Add this file to BOTH the app target and the widget extension target.
+// Anything the Live Activity and the app both need (the state shape, brand colors) lives here.
 nonisolated struct NUGameAttributes: ActivityAttributes {
     nonisolated struct ContentState: Codable, Hashable {
         var nuScore: Int
@@ -13,14 +14,18 @@ nonisolated struct NUGameAttributes: ActivityAttributes {
         var lastGoal: String     // "Northwestern · Q4 13:31 left"
         var isFinal: Bool
         var note: String         // "shootout"
+        var clockEnd: Double? = nil   // epoch secs when the running clock hits 0; nil = no countdown
     }
-    
+
     var opponent: String
     var sport: String
     var oppColorHex: String? = nil
+    var gameId: String? = nil   // lets the Worker match an activity's push token to its game
 }
 
 extension Color {
+    static let nuPurple = Color(red: 0x4E / 255, green: 0x2A / 255, blue: 0x84 / 255)
+
     init?(hex: String?) {
         guard var s = hex?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return nil }
         if s.hasPrefix("#") { s.removeFirst() }

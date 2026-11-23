@@ -7,7 +7,7 @@ It's a one-person app, installed through Xcode. It isn't on the App Store.
 ## What it does
 
 - **Home screen:** Live, Upcoming and Recent games, newest first. Green and red dots mark wins and losses.
-- **Game detail:** score, score by period, and a goal list with game times.
+- **Game detail:** score, score by period, and a goal list with scorers and game times.
 - **Live Activity:** lock screen and Dynamic Island, with the score, quarter, clock and last goal.
 - **Alerts:** goals, quarter starts and the final, delivered through the Live Activity (push is still being set up).
 

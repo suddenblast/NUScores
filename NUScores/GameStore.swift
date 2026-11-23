@@ -9,9 +9,7 @@ final class GameStore: ObservableObject {
     @Published var loadedOnce = false
 
     func refresh() async {
-        guard var comps = URLComponents(string: Config.baseURL + "/games") else { return }
-        comps.queryItems = [URLQueryItem(name: "key", value: Config.adminKey)]
-        guard let url = comps.url else { return }
+        guard let url = Config.url("/games") else { return }
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             if let http = response as? HTTPURLResponse, http.statusCode != 200 {
