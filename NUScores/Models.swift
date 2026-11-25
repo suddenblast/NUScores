@@ -43,6 +43,7 @@ struct Game: Identifiable {
     let lines: [LineScore]
     let goals: [Goal]
     var oppColorHex: String? = nil
+    var oppSeo: String? = nil     // NCAA name used to find the opponent's logo
     var venue: String = ""
     var venueCity: String = ""
     var venueState: String = ""
@@ -57,14 +58,15 @@ struct GameSide {
     let score: Int
     let color: Color
     let isNU: Bool
+    var seo: String? = nil   // logo name
 }
 
 extension Game {
     var isAway: Bool { !nuHome && !neutral }
     /// "@" when NU is at the opponent's place, "vs" at home or on a neutral site.
     var vs: String { isAway ? "@" : "vs" }
-    private var nuSide: GameSide { GameSide(name: "Northwestern", short: "NU", score: nuScore, color: .nuPurple, isNU: true) }
-    private var oppSide: GameSide { GameSide(name: opponent, short: opponent, score: oppScore, color: oppColor, isNU: false) }
+    private var nuSide: GameSide { GameSide(name: "Northwestern", short: "NU", score: nuScore, color: .nuPurple, isNU: true, seo: "northwestern") }
+    private var oppSide: GameSide { GameSide(name: opponent, short: opponent, score: oppScore, color: oppColor, isNU: false, seo: oppSeo) }
     var awaySide: GameSide { nuHome ? oppSide : nuSide }
     var homeSide: GameSide { nuHome ? nuSide : oppSide }
 }

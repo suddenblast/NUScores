@@ -43,6 +43,14 @@ In debug builds, the **Demo** button on the home screen replays a recorded game 
 | Past-season games | Worker backfill built, not yet run on real data |
 | Regular-season lacrosse source (StatBroadcast) | Not built |
 
+## Team logos
+
+Teams show their logo instead of a color circle once it has been downloaded, and fall back to the circle until then. After
+games load, the app asks the Worker's `/logo` route (which turns ncaa-api's SVGs into PNGs) for each opponent and saves the
+files in an App Group folder, so the Live Activity can read them too (it can't download images itself). One-time setup in
+Xcode: add the **App Groups** capability to both the NUScores and NUScoresWidget targets, with the group
+`group.com.jonasblum.NUScores`. Without it everything still works, with circles.
+
 ## Known limits
 
 - The feed updates about once a minute, so alerts run a minute or more behind real play. The final can take two to three minutes.

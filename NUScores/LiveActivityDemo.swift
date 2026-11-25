@@ -47,7 +47,7 @@ final class LiveActivityDemo: ObservableObject {
         task = Task {
             let steps = Self.steps
             do {
-                let attrs = NUGameAttributes(opponent: "UConn", sport: "Field hockey", oppColorHex: "#0C2340")
+                let attrs = NUGameAttributes(opponent: "UConn", sport: "Field hockey", oppColorHex: "#0C2340", oppSeo: "uconn")
                 activity = try Activity.request(attributes: attrs,
                                                 content: .init(state: steps[0].state, staleDate: nil))
             } catch {

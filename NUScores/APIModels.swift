@@ -2,9 +2,10 @@ import Foundation
 
 extension Config {
     /// Worker URL for a path like "/games", with the admin key attached.
-    static func url(_ path: String) -> URL? {
+    static func url(_ path: String, query: [String: String] = [:]) -> URL? {
         var comps = URLComponents(string: baseURL + path)
         comps?.queryItems = [URLQueryItem(name: "key", value: adminKey)]
+            + query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }
         return comps?.url
     }
 }
@@ -25,6 +26,7 @@ struct GameDTO: Decodable {
     let sport: String
     let opponent: String
     let oppColor: String?
+    let oppSeo: String?   // missing in older Worker responses
     let detail: String
     let status: String
     let start: String?
@@ -77,6 +79,7 @@ extension GameDTO {
                      scorer: $0.scorer ?? "")
             },
             oppColorHex: oppColor,
+            oppSeo: oppSeo,
             venue: venue ?? "",
             venueCity: venueCity ?? "",
             venueState: venueState ?? "",

@@ -14,8 +14,8 @@ struct NUGameLiveActivity: Widget {
         } dynamicIsland: { context in
             let s = context.state
             let nuHome = context.attributes.nuHome ?? true
-            let nuBadge = TeamBadge(name: "NU", color: .nuPurple)
-            let oppBadge = TeamBadge(name: context.attributes.opponent, color: Color(hex: context.attributes.oppColorHex) ?? .gray)
+            let nuBadge = TeamBadge(name: "NU", color: .nuPurple, seo: "northwestern")
+            let oppBadge = TeamBadge(name: context.attributes.opponent, color: Color(hex: context.attributes.oppColorHex) ?? .gray, seo: context.attributes.oppSeo)
             return DynamicIsland {
                 // Away team on the left, home team on the right.
                 DynamicIslandExpandedRegion(.leading) {
@@ -104,10 +104,10 @@ private struct CompactStatus: View {
 private struct TeamBadge: View {
     let name: String
     let color: Color
+    var seo: String? = nil
     var body: some View {
         VStack(spacing: 4) {
-            Circle().fill(color).frame(width: 28, height: 28)
-                .overlay(Circle().stroke(.white.opacity(0.25), lineWidth: 1))
+            TeamMark(seo: seo, color: color, size: 30, ringWidth: 1, ring: .white.opacity(0.25), backed: true)
             Text(name).font(.caption).lineLimit(1).minimumScaleFactor(0.7)
         }
     }

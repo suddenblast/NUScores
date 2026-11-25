@@ -130,9 +130,7 @@ struct GameDetailView: View {
 
     private func teamBadge(_ side: GameSide) -> some View {
         VStack(spacing: 6) {
-            Circle().fill(side.color)
-                .frame(width: 44, height: 44)
-                .overlay(Circle().stroke(Color.white, lineWidth: 2))
+            TeamMark(seo: side.seo, color: side.color, size: 48)
             Text(side.short)
                 .font(.footnote.weight(side.isNU ? .bold : .regular))
                 .lineLimit(1)

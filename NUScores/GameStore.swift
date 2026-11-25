@@ -23,6 +23,8 @@ final class GameStore: ObservableObject {
                 .map(\.game)
             lastUpdated = Date()
             errorText = nil
+            let loaded = games
+            Task { await LogoStore.shared.sync(games: loaded) }
         } catch {
             errorText = "Couldn't load games. Pull down to retry."
         }

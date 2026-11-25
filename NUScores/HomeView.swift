@@ -3,12 +3,24 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var store = GameStore()
     @StateObject private var demo = LiveActivityDemo()
-    @State private var filter: Sport?   // nil = all sports
+    @State private var chosenSport: Sport?   // nil until the user taps the picker; then their choice wins
     @State private var seasonOverride: Int?   // nil = the current academic year
     @Environment(\.colorScheme) private var scheme
 
     private static var currentSeason: Int { Game.academicYear(of: Date()) }
     private var season: Int { seasonOverride ?? Self.currentSeason }
+
+    // There is no "All" view. Until the user picks a sport, show the one in play: a live game's sport first, else the
+    // sport whose game in this season is closest to today (so field hockey in the fall, lacrosse in the spring).
+    private var filter: Sport {
+        if let chosenSport { return chosenSport }
+        let inSeason = store.games.filter { $0.academicYear == nil || $0.academicYear == season }
+        if let live = inSeason.first(where: { $0.status == .live }) { return live.sport }
+        let now = Date()
+        let nearest = inSeason.compactMap { g in g.start.map { (g.sport, abs($0.timeIntervalSince(now))) } }
+            .min { $0.1 < $1.1 }
+        return nearest?.0 ?? .fieldHockey
+    }
 
     // Every academic year that has games, plus the current one, newest first.
     private var seasons: [Int] {
@@ -19,10 +31,9 @@ struct HomeView: View {
         "\(year)–" + String(format: "%02d", (year + 1) % 100)
     }
 
-    // Overall record for the selected season, only when one sport is selected. Counts one game per opponent per day,
+    // Overall record for the selected sport and season. Counts one game per opponent per day,
     // so a game that was stored twice (live recording plus backfill) is not counted twice.
     private var record: String? {
-        guard filter != nil else { return nil }
         var seen = Set<String>()
         var w = 0, l = 0, t = 0
         for g in shown where g.status == .final {
@@ -42,7 +53,7 @@ struct HomeView: View {
     // Games with no start time are always shown, so a live game can never disappear.
     private var shown: [Game] {
         store.games.filter { g in
-            (filter == nil || g.sport == filter) && (g.academicYear == nil || g.academicYear == season)
+            g.sport == filter && (g.academicYear == nil || g.academicYear == season)
         }
     }
 
@@ -75,10 +86,9 @@ struct HomeView: View {
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
 
-                    Picker("Sport", selection: $filter) {
-                        Text("All").tag(Sport?.none)
-                        Text("Field hockey").tag(Sport?.some(.fieldHockey))
-                        Text("Lacrosse").tag(Sport?.some(.lacrosse))
+                    Picker("Sport", selection: Binding(get: { filter }, set: { chosenSport = $0 })) {
+                        Text("Field hockey").tag(Sport.fieldHockey)
+                        Text("Lacrosse").tag(Sport.lacrosse)
                     }
                     .pickerStyle(.segmented)
                     .listRowSeparator(.hidden)
@@ -109,7 +119,7 @@ struct HomeView: View {
                 section("Upcoming", shown.filter { $0.status == .upcoming }
                     .sorted { ($0.start ?? .distantFuture) < ($1.start ?? .distantFuture) }) { UpcomingRow(game: $0) }
                 if store.loadedOnce && shown.isEmpty && store.errorText == nil {
-                    Section { Text(filter == nil ? "No games in \(seasonLabel(season)) yet." : "No \(filter!.rawValue.lowercased()) games in \(seasonLabel(season)) yet.").foregroundStyle(.secondary) }
+                    Section { Text("No \(filter.rawValue.lowercased()) games in \(seasonLabel(season)) yet.").foregroundStyle(.secondary) }
                 }
             }
             .scrollContentBackground(.hidden)
@@ -194,9 +204,7 @@ struct LiveCard: View {
             // Away team first, home team second.
             ForEach(Array(sides.enumerated()), id: \.offset) { _, side in
                 HStack(spacing: 12) {
-                    Circle().fill(side.color)
-                        .frame(width: 30, height: 30)
-                        .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                    TeamMark(seo: side.seo, color: side.color, size: 34, backed: true)
                     Text(side.name)
                         .font(.title3)
                         .fontWeight(side.isNU ? .bold : .regular)
