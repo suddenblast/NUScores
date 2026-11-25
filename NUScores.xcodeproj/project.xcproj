@@ -11,6 +11,7 @@
     ],
   },
   "files": [
+    { "path": "NUScoresWidgetExtension.entitlements" },
     {
       "kind": "folder",
       "path": "NUScores",
@@ -132,6 +133,7 @@
         "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
         "ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME": "WidgetBackground",
         "CLANG_ENABLE_MODULES": "YES",
+        "CODE_SIGN_ENTITLEMENTS": "NUScoresWidgetExtension.entitlements",
         "CODE_SIGN_IDENTITY": "Apple Development",
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
@@ -150,6 +152,7 @@
         "PRODUCT_BUNDLE_IDENTIFIER": "com.jonasblum.NUScores.NUScoresWidget",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "PROVISIONING_PROFILE_SPECIFIER": "",
+        "REGISTER_APP_GROUPS": "YES",
         "SDKROOT": "iphoneos",
         "SKIP_INSTALL": "YES",
         "STRING_CATALOG_GENERATE_SYMBOLS": "YES",
