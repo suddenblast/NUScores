@@ -93,6 +93,15 @@ struct HomeView: View {
                     .pickerStyle(.segmented)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 0, trailing: 0))
+                } header: {
+                    // The title is the first section's header: a row would be clipped by the list's rounded corner.
+                    Text("Northwestern")
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(Color(uiColor: .label))   // a plain color: .primary gets dimmed by the header style
+                        .textCase(nil)
+                        .padding(.leading, -16)   // lines up with the rows below, like the other headers
+                        .padding(.bottom, 2)
+                        .accessibilityAddTraits(.isHeader)
                 }
                 .listRowBackground(Color.clear)
                 if let err = store.errorText {
@@ -131,7 +140,7 @@ struct HomeView: View {
             .environment(\.defaultMinListRowHeight, 24)   // lets the small season row stay small
             .background { HomeBackground() }
             .overlay { if !store.loadedOnce { ProgressView() } }
-            .navigationTitle("Northwestern")
+            .toolbar(.hidden, for: .navigationBar)   // the title is the first row of the list, so there is no empty bar above it
             .navigationDestination(for: Game.self) { g in
                 let current = allGames.first { $0.id == g.id } ?? g
                 GameDetailView(game: current).id(current.changeKey)
