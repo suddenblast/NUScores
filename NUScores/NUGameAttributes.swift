@@ -21,6 +21,7 @@ nonisolated struct NUGameAttributes: ActivityAttributes {
     var sport: String
     var oppColorHex: String? = nil
     var gameId: String? = nil   // lets the Worker match an activity's push token to its game
+    var nuHome: Bool? = nil     // nil (older activities) counts as home
 }
 
 extension Color {

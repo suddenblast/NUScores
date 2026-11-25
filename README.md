@@ -6,10 +6,10 @@ It's a one-person app, installed through Xcode. It isn't on the App Store.
 
 ## What it does
 
-- **Home screen:** Live, Upcoming and Recent games, newest first. Green and red dots mark wins and losses.
-- **Game detail:** score, score by period, and a goal list with scorers and game times.
+- **Home screen:** a sport selector (All / Field hockey / Lacrosse) over Live, Recent (newest first) and Upcoming (soonest first). Green and red dots mark wins and losses; "@" means away, "vs" home or neutral.
+- **Game detail:** score, score by period, goal list with scorers and game times, plus location, date and weather (Apple WeatherKit).
 - **Live Activity:** lock screen and Dynamic Island, with the score, quarter, clock and last goal.
-- **Alerts:** goals, quarter starts and the final, delivered through the Live Activity (push is still being set up).
+- **Alerts:** goals, quarter starts and the final, delivered by push to the Live Activity.
 
 ## How it works
 
@@ -18,12 +18,12 @@ NCAA.com live feed  ->  Cloudflare Worker  ->  this app
 ```
 
 - A separate Cloudflare Worker polls the game feed during games, works out what happened (goal, new quarter, final) and serves the current games as JSON.
-- This app reads that JSON. The Worker is in a different project (`nu-score-recorder`) and isn't part of this repo.
+- The Worker finds NU games on its own through a self-hosted ncaa-api, so nothing is edited per game. This app reads its JSON. The Worker is in a different project (`nu-score-recorder`) and isn't part of this repo.
 - Regular-season lacrosse uses a different source (StatBroadcast), which isn't supported yet.
 
 ## Setup
 
-You need a Mac with Xcode 27 and an iPhone running iOS 17.2 or later. Live Activity push also needs a paid Apple Developer account.
+You need a Mac with Xcode 27 and an iPhone running iOS 17.2 or later. Live Activity push also needs a paid Apple Developer account (the app uses the sandbox APNs environment for Xcode installs).
 
 1. Open `NUScores.xcodeproj` in Xcode.
 2. Copy `Config.swift.example` to `NUScores/Config.swift` and fill in your Worker URL and admin key. `Config.swift` is git-ignored, so the key stays off GitHub.
@@ -36,11 +36,12 @@ In debug builds, the **Demo** button on the home screen replays a recorded game 
 
 | Piece | State |
 |---|---|
-| Home and game detail screens | Working, with real data |
-| Live Activity (lock screen and Dynamic Island) | Working from the app (demo) |
-| Push updates when the app is closed | Waiting on Apple Developer enrollment |
-| Upcoming games and schedule | Not built |
-| Lacrosse source (StatBroadcast) | Not built; permission requested |
+| Home and game detail screens | Working with real data; the newest changes (sport selector, away-first order, vs/@) still need an Xcode build check |
+| Live Activity (lock screen and Dynamic Island) | Working, including push start/update/end from the Worker |
+| Push updates when the app is closed | Working in sandbox; verified with the Worker's `/push-test` |
+| Upcoming games and schedule | Built (found automatically by the Worker) |
+| Past-season games | Worker backfill built, not yet run on real data |
+| Regular-season lacrosse source (StatBroadcast) | Not built |
 
 ## Known limits
 

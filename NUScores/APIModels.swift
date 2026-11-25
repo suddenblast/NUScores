@@ -39,6 +39,8 @@ struct GameDTO: Decodable {
     let venue: String?
     let venueCity: String?
     let venueState: String?
+    let nuHome: Bool?
+    let neutral: Bool?
 }
 
 private func parseISO(_ s: String?) -> Date? {
@@ -60,7 +62,7 @@ extension GameDTO {
         }
         return Game(
             id: id,
-            sport: sport == "Lacrosse" ? .lacrosse : .fieldHockey,
+            sport: Sport(rawValue: sport) ?? .fieldHockey,
             opponent: opponent,
             detail: detail,
             status: status,
@@ -77,7 +79,9 @@ extension GameDTO {
             oppColorHex: oppColor,
             venue: venue ?? "",
             venueCity: venueCity ?? "",
-            venueState: venueState ?? ""
+            venueState: venueState ?? "",
+            nuHome: nuHome ?? true,
+            neutral: neutral ?? false
         )
     }
 

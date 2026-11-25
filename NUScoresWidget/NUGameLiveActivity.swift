@@ -13,16 +13,20 @@ struct NUGameLiveActivity: Widget {
                 .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { context in
             let s = context.state
+            let nuHome = context.attributes.nuHome ?? true
+            let nuBadge = TeamBadge(name: "NU", color: .nuPurple)
+            let oppBadge = TeamBadge(name: context.attributes.opponent, color: Color(hex: context.attributes.oppColorHex) ?? .gray)
             return DynamicIsland {
+                // Away team on the left, home team on the right.
                 DynamicIslandExpandedRegion(.leading) {
-                    TeamBadge(name: "NU", color: .nuPurple)
+                    if nuHome { oppBadge } else { nuBadge }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    TeamBadge(name: context.attributes.opponent, color: Color(hex: context.attributes.oppColorHex) ?? .gray)
+                    if nuHome { nuBadge } else { oppBadge }
                 }
                 DynamicIslandExpandedRegion(.center) {
                     VStack(spacing: 2) {
-                        Text("\(s.nuScore) – \(s.oppScore)")
+                        Text(nuHome ? "\(s.oppScore) – \(s.nuScore)" : "\(s.nuScore) – \(s.oppScore)")
                             .font(.system(size: 30, weight: .medium))
                         StatusLine(s: s).font(.caption).foregroundStyle(.secondary)
                     }
@@ -104,7 +108,7 @@ private struct TeamBadge: View {
         VStack(spacing: 4) {
             Circle().fill(color).frame(width: 28, height: 28)
                 .overlay(Circle().stroke(.white.opacity(0.25), lineWidth: 1))
-            Text(name).font(.caption)
+            Text(name).font(.caption).lineLimit(1).minimumScaleFactor(0.7)
         }
     }
 }
@@ -131,15 +135,21 @@ private struct LockScreenView: View {
                 Spacer()
                 StatusLine(s: s).font(.caption)
             }
+            // Away team first, home team second.
+            let nuHome = context.attributes.nuHome ?? true
+            let nu = (name: "Northwestern", score: s.nuScore)
+            let opp = (name: context.attributes.opponent, score: s.oppScore)
+            let top = nuHome ? opp : nu
+            let bottom = nuHome ? nu : opp
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Northwestern")
-                    Text(context.attributes.opponent).opacity(0.85)
+                    Text(top.name).opacity(nuHome ? 0.85 : 1)
+                    Text(bottom.name).opacity(nuHome ? 1 : 0.85)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text("\(s.nuScore)")
-                    Text("\(s.oppScore)")
+                    Text("\(top.score)")
+                    Text("\(bottom.score)")
                 }
                 .font(.title2.weight(.medium))
             }

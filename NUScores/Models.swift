@@ -46,6 +46,27 @@ struct Game: Identifiable {
     var venue: String = ""
     var venueCity: String = ""
     var venueState: String = ""
+    var nuHome: Bool = true      // the feed's home flag for NU
+    var neutral: Bool = false    // NCAA tournament games count as neutral site
+}
+
+// One side of a game, so views can list the away team first and the home team second.
+struct GameSide {
+    let name: String
+    let short: String
+    let score: Int
+    let color: Color
+    let isNU: Bool
+}
+
+extension Game {
+    var isAway: Bool { !nuHome && !neutral }
+    /// "@" when NU is at the opponent's place, "vs" at home or on a neutral site.
+    var vs: String { isAway ? "@" : "vs" }
+    private var nuSide: GameSide { GameSide(name: "Northwestern", short: "NU", score: nuScore, color: .nuPurple, isNU: true) }
+    private var oppSide: GameSide { GameSide(name: opponent, short: opponent, score: oppScore, color: oppColor, isNU: false) }
+    var awaySide: GameSide { nuHome ? oppSide : nuSide }
+    var homeSide: GameSide { nuHome ? nuSide : oppSide }
 }
 
 extension Game {
