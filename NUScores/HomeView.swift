@@ -2,19 +2,19 @@ import SwiftUI
 
 struct HomeView: View {
     @StateObject private var store = GameStore()
-    @StateObject private var demo = LiveActivityDemo()
     @State private var chosenSport: Sport?   // nil until the user taps the picker; then their choice wins
     @State private var seasonOverride: Int?   // nil = the current academic year
     @Environment(\.colorScheme) private var scheme
 
     private static var currentSeason: Int { Game.academicYear(of: Date()) }
+    private var allGames: [Game] { store.games }
     private var season: Int { seasonOverride ?? Self.currentSeason }
 
     // There is no "All" view. Until the user picks a sport, show the one in play: a live game's sport first, else the
     // sport whose game in this season is closest to today (so field hockey in the fall, lacrosse in the spring).
     private var filter: Sport {
         if let chosenSport { return chosenSport }
-        let inSeason = store.games.filter { $0.academicYear == nil || $0.academicYear == season }
+        let inSeason = allGames.filter { $0.academicYear == nil || $0.academicYear == season }
         if let live = inSeason.first(where: { $0.status == .live }) { return live.sport }
         let now = Date()
         let nearest = inSeason.compactMap { g in g.start.map { (g.sport, abs($0.timeIntervalSince(now))) } }
@@ -24,7 +24,7 @@ struct HomeView: View {
 
     // Every academic year that has games, plus the current one, newest first.
     private var seasons: [Int] {
-        Set(store.games.compactMap(\.academicYear)).union([Self.currentSeason]).sorted(by: >)
+        Set(allGames.compactMap(\.academicYear)).union([Self.currentSeason]).sorted(by: >)
     }
 
     private func seasonLabel(_ year: Int) -> String {
@@ -52,7 +52,7 @@ struct HomeView: View {
 
     // Games with no start time are always shown, so a live game can never disappear.
     private var shown: [Game] {
-        store.games.filter { g in
+        allGames.filter { g in
             g.sport == filter && (g.academicYear == nil || g.academicYear == season)
         }
     }
@@ -103,10 +103,14 @@ struct HomeView: View {
                 let live = shown.filter { $0.status == .live }
                 if !live.isEmpty {
                     Section {
-                        ForEach(live) { g in
+                        ForEach(live.map(LiveItem.init)) { item in
+                            let g = item.game
                             ZStack {
                                 LiveCard(game: g)
                                 NavigationLink(value: g) { EmptyView() }.opacity(0)   // hides the chevron
+                            }
+                            .overlay(alignment: .topTrailing) {
+                                LiveActivityButton(game: g).padding(.top, 8).padding(.trailing, 12)
                             }
                             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                             .listRowBackground(Color.clear)
@@ -129,15 +133,9 @@ struct HomeView: View {
             .overlay { if !store.loadedOnce { ProgressView() } }
             .navigationTitle("Northwestern")
             .navigationDestination(for: Game.self) { g in
-                GameDetailView(game: store.games.first { $0.id == g.id } ?? g)
+                let current = allGames.first { $0.id == g.id } ?? g
+                GameDetailView(game: current).id(current.changeKey)
             }
-            #if DEBUG
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(demo.running ? "Stop demo" : "Demo") { demo.toggle() }
-                }
-            }
-            #endif
             .refreshable { await store.refresh() }
             .task {
                 while !Task.isCancelled {
@@ -162,6 +160,13 @@ struct HomeView: View {
     }
 }
 
+// Game == compares ids only, so SwiftUI thinks a live game never changes. This wrapper's id includes the score
+// and clock, so the live card is rebuilt whenever they change.
+private struct LiveItem: Identifiable {
+    let game: Game
+    var id: String { game.changeKey }
+}
+
 // A thin stripe in the opponent's color down the left edge of a row.
 private struct OpponentStripe: ViewModifier {
     let color: Color
@@ -183,6 +188,33 @@ private extension View {
     func opponentStripe(_ color: Color) -> some View { modifier(OpponentStripe(color: color)) }
 }
 
+// The leading score is bold and the trailing one thin. A tie leaves both regular.
+private func scoreWeight(_ score: Int, other: Int) -> Font.Weight {
+    score > other ? .bold : score < other ? .light : .regular
+}
+
+// Turns the lock-screen Live Activity for one game on or off. It reads "on" while an activity for the game exists,
+// so dismissing the activity from the lock screen switches it off too.
+private struct LiveActivityButton: View {
+    let game: Game
+    @ObservedObject private var controller = LiveActivityController.shared
+
+    var body: some View {
+        if controller.available {
+            let on = controller.isOn(game.id)
+            Button { controller.toggle(game) } label: {
+                Image(systemName: on ? "bell.fill" : "bell.slash")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(.white.opacity(on ? 0.28 : 0.14)))
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(on ? "Turn off Live Activity" : "Turn on Live Activity")
+        }
+    }
+}
+
 struct LiveCard: View {
     let game: Game
     var body: some View {
@@ -194,11 +226,11 @@ struct LiveCard: View {
                 HStack(spacing: 6) {
                     Circle().fill(Color.red).frame(width: 8, height: 8)
                     Text("LIVE").fontWeight(.bold)
-                    Text("· " + [game.sport.rawValue, game.detail].filter { !$0.isEmpty }.joined(separator: " · "))
-                        .opacity(0.85)
+                    if !game.detail.isEmpty { Text("· " + game.detail).opacity(0.85) }
                 }
                 Spacer()
                 Text("\(game.periodLabel) \(game.clockLeft)").fontWeight(.semibold)
+                    .padding(.trailing, LiveActivityController.shared.available ? 28 : 0)   // room for the bell button
             }
             .font(.caption)
             // Away team first, home team second.
@@ -211,7 +243,7 @@ struct LiveCard: View {
                         .opacity(side.isNU ? 1 : 0.9)
                     Spacer()
                     Text("\(side.score)")
-                        .font(.system(size: 34, weight: side.isNU ? .bold : .semibold))
+                        .font(.system(size: 34, weight: scoreWeight(side.score, other: sides.first { $0.isNU != side.isNU }?.score ?? 0)))
                         .monospacedDigit()
                 }
             }
@@ -237,9 +269,8 @@ struct UpcomingRow: View {
         HStack(spacing: 10) {
             VStack(alignment: .leading) {
                 Text("\(game.vs) \(game.opponent)")
-                Text([game.sport.rawValue, game.venue.components(separatedBy: " · ").last ?? ""]
-                        .filter { !$0.isEmpty }.joined(separator: " · "))
-                    .font(.caption).foregroundStyle(.secondary)
+                let place = game.venue.components(separatedBy: " · ").last ?? ""
+                if !place.isEmpty { Text(place).font(.caption).foregroundStyle(.secondary) }
             }
             Spacer()
             if let s = game.start {
@@ -259,7 +290,7 @@ struct FinalRow: View {
     let game: Game
     private var won: Bool { game.nuScore > game.oppScore }
     private var caption: String {
-        var parts = [game.sport.rawValue]
+        var parts: [String] = []
         if !game.note.isEmpty { parts.append(game.note) }
         if let s = game.start { parts.append(s.formatted(.dateTime.month(.abbreviated).day())) }
         return parts.joined(separator: " · ")
@@ -272,8 +303,7 @@ struct FinalRow: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Text("\(game.nuScore)–\(game.oppScore)")
-                .font(.body.weight(.semibold))
+            Text("\(Text("\(game.nuScore)").fontWeight(scoreWeight(game.nuScore, other: game.oppScore)))–\(Text("\(game.oppScore)").fontWeight(scoreWeight(game.oppScore, other: game.nuScore)))")
                 .monospacedDigit()
         }
         .opponentStripe(game.oppColor)
@@ -312,6 +342,11 @@ struct HomeBackground: View {
 }
 
 extension Game {
+    /// Changes whenever anything shown on a live card or detail screen changes.
+    var changeKey: String {
+        "\(id)|\(nuScore)-\(oppScore)|\(periodLabel)|\(clockLeft)|\(status)|\(goals.count)|\(note)"
+    }
+
     /// The academic year a game belongs to, as its starting year: Aug 1, 2026 to Jul 31, 2027 is 2026.
     var academicYear: Int? { start.map { Game.academicYear(of: $0) } }
 

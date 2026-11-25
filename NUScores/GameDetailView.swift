@@ -37,11 +37,14 @@ struct GameDetailView: View {
                                 Text(g.scorer.isEmpty ? "\(team) goal" : g.scorer)
                                 Text(goalCaption(g, team: team))
                                     .font(.caption).foregroundStyle(.secondary)
+                                    .lineLimit(1).minimumScaleFactor(0.8)   // stay on one line
                             }
-                            Spacer()
+                            .layoutPriority(1)   // the score on the right shrinks first, not this text
+                            Spacer(minLength: 8)
                             Text(game.nuHome ? "\(game.opponent) \(g.oppScore)–\(g.nuScore) NU"
                                              : "NU \(g.nuScore)–\(g.oppScore) \(game.opponent)")
                                 .font(.footnote)
+                                .lineLimit(1).minimumScaleFactor(0.7)
                         }
                     }
                 }

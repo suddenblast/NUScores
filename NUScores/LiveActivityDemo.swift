@@ -6,7 +6,13 @@ import Combine
 @MainActor
 final class LiveActivityDemo: ObservableObject {
     @Published var running = false
-    private var activity: Activity<NUGameAttributes>?
+    /// The test game shown in the app's own list while the demo runs (nil when it is not running).
+    @Published var game: Game?
+    static let gameId = "demo-test-game"
+    // Looked up each time, so the bell on the card can end the activity and start a new one mid-demo.
+    private var activities: [Activity<NUGameAttributes>] {
+        Activity<NUGameAttributes>.activities.filter { $0.attributes.gameId == Self.gameId }
+    }
     private var task: Task<Void, Never>?
 
     struct Step {
@@ -41,32 +47,49 @@ final class LiveActivityDemo: ObservableObject {
 
     func toggle() { running ? stop() : start() }
 
+    /// The in-app copy of the game as of step `i`, built from the same steps the Live Activity replays.
+    private func appGame(upTo i: Int) -> Game {
+        var goals: [Goal] = []
+        for step in Self.steps[0...i] {
+            guard let a = step.alert, a.title.hasPrefix("Goal") else { continue }
+            let st = step.state
+            goals.append(Goal(nuScored: a.title.contains("Northwestern"), period: st.period,
+                              timeLeft: st.clockLeft + " left", nuScore: st.nuScore, oppScore: st.oppScore,
+                              scorer: "Test Player"))
+        }
+        let st = Self.steps[i].state
+        return Game(id: Self.gameId, sport: .fieldHockey, opponent: "UConn", detail: "Test game",
+                    status: st.isFinal ? .final : .live, start: Date(),
+                    nuScore: st.nuScore, oppScore: st.oppScore,
+                    periodLabel: st.period, clockLeft: st.clockLeft, note: st.note,
+                    lines: [], goals: goals, oppColorHex: "#0C2340", oppSeo: "uconn")
+    }
+
     func start() {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         running = true
+        game = appGame(upTo: 0)
         task = Task {
             let steps = Self.steps
-            do {
-                let attrs = NUGameAttributes(opponent: "UConn", sport: "Field hockey", oppColorHex: "#0C2340", oppSeo: "uconn")
-                activity = try Activity.request(attributes: attrs,
-                                                content: .init(state: steps[0].state, staleDate: nil))
-            } catch {
-                running = false
-                return
+            // The Live Activity is optional: if it can't start, the in-app game still plays.
+            if ActivityAuthorizationInfo().areActivitiesEnabled {
+                let attrs = NUGameAttributes(opponent: "UConn", sport: "Field hockey", oppColorHex: "#0C2340", gameId: Self.gameId, oppSeo: "uconn")
+                _ = try? Activity.request(attributes: attrs,
+                                          content: .init(state: steps[0].state, staleDate: nil))
             }
             for (i, step) in steps.enumerated().dropFirst() {
                 try? await Task.sleep(for: .seconds(5))
                 if Task.isCancelled { return }
+                game = appGame(upTo: i)
                 let content = ActivityContent(state: step.state, staleDate: nil)
                 if i == steps.count - 1 {
-                    await activity?.end(content, dismissalPolicy: .default)
+                    for a in activities { await a.end(content, dismissalPolicy: .default) }
                 } else if let a = step.alert {
                     let alert = AlertConfiguration(title: LocalizedStringResource(stringLiteral: a.title),
                                                    body: LocalizedStringResource(stringLiteral: a.body),
                                                    sound: .default)
-                    await activity?.update(content, alertConfiguration: alert)
+                    for a in activities { await a.update(content, alertConfiguration: alert) }
                 } else {
-                    await activity?.update(content)
+                    for a in activities { await a.update(content) }
                 }
             }
             running = false
@@ -75,9 +98,9 @@ final class LiveActivityDemo: ObservableObject {
 
     func stop() {
         task?.cancel()
-        let a = activity
-        activity = nil
+        let mine = activities
+        game = nil
         running = false
-        Task { await a?.end(nil, dismissalPolicy: .immediate) }
+        Task { for a in mine { await a.end(nil, dismissalPolicy: .immediate) } }
     }
 }
