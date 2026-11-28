@@ -12,6 +12,7 @@ final class PushRegistrar {
     static let shared = PushRegistrar()
     private var started = false
     private var observed = Set<String>()
+    private static let lastStartTokenKey = "lastStartToken"
 
     func start() {
         guard !started else { return }
@@ -19,6 +20,7 @@ final class PushRegistrar {
 
         Task {
             for await data in Activity<NUGameAttributes>.pushToStartTokenUpdates {
+                UserDefaults.standard.set(data.hexString, forKey: Self.lastStartTokenKey)
                 await Self.send(kind: "start", token: data.hexString, gameId: nil)
             }
         }
@@ -30,6 +32,12 @@ final class PushRegistrar {
         for activity in Activity<NUGameAttributes>.activities {
             observe(activity)
         }
+    }
+
+    /// Called when a notification setting changes: tell the Worker again, using the push-to-start token from this install.
+    func settingsChanged() {
+        guard let token = UserDefaults.standard.string(forKey: Self.lastStartTokenKey) else { return }
+        Task { await Self.send(kind: "start", token: token, gameId: nil) }
     }
 
     private func observe(_ activity: Activity<NUGameAttributes>) {
@@ -48,8 +56,9 @@ final class PushRegistrar {
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        var body: [String: String] = ["kind": kind, "token": token]
+        var body: [String: Any] = ["kind": kind, "token": token, "deviceId": AppSettings.shared.deviceId]
         if let gameId, !gameId.isEmpty { body["gameId"] = gameId }
+        if kind == "start" { body["sports"] = AppSettings.shared.notifySports }
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         do {
             let (_, response) = try await URLSession.shared.data(for: req)
@@ -84,10 +93,11 @@ final class LiveActivityController: ObservableObject {
         guard watched.insert(activity.id).inserted else { return }
         Task {
             for await state in activity.activityStateUpdates {
-                switch state {
-                case .active, .stale: activeGameIds.insert(gameId)
-                case .ended, .dismissed: refresh(gameId)
-                @unknown default: break
+                // Not a switch: iOS 26 added a "pending" state, and any state other than these four changes nothing here.
+                if state == .active || state == .stale {
+                    activeGameIds.insert(gameId)
+                } else if state == .ended || state == .dismissed {
+                    refresh(gameId)
                 }
             }
         }

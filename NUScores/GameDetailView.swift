@@ -3,6 +3,7 @@ import SwiftUI
 struct GameDetailView: View {
     let game: Game
     @StateObject private var wx = WeatherLoader()
+    @Environment(\.colorScheme) private var scheme
 
     private var away: GameSide { game.awaySide }
     private var home: GameSide { game.homeSide }
@@ -16,18 +17,21 @@ struct GameDetailView: View {
             }
 
             if !game.lines.isEmpty {
-                Section("Score by period") {
+                Section {
                     VStack(spacing: 10) {
-                        periodRow(label: "", values: game.lines.map(\.period), secondary: true)
-                        periodRow(label: away.short, values: game.lines.map { "\(game.nuHome ? $0.opp : $0.nu)" })
-                        periodRow(label: home.short, values: game.lines.map { "\(game.nuHome ? $0.nu : $0.opp)" })
+                        periodRow(label: cornerLabel, values: game.lines.map(\.period), secondary: true, total: "T")
+                        periodRow(label: Text(away.short), values: game.lines.map { "\(game.nuHome ? $0.opp : $0.nu)" },
+                                  total: "\(away.score)")
+                        periodRow(label: Text(home.short), values: game.lines.map { "\(game.nuHome ? $0.nu : $0.opp)" },
+                                  total: "\(home.score)")
                     }
                     .font(.subheadline)
-                }
+                    .listRowBackground(Color.cardFill)
+                } header: { sectionHeader("Score by period") }
             }
 
             if !game.goals.isEmpty {
-                Section("Goals") {
+                Section {
                     ForEach(game.goals) { g in
                         HStack(spacing: 10) {
                             Circle().fill(g.nuScored ? Color.nuPurple : game.oppColor)
@@ -47,14 +51,16 @@ struct GameDetailView: View {
                                 .lineLimit(1).minimumScaleFactor(0.7)
                         }
                     }
-                }
+                    .listRowBackground(Color.cardFill)
+                } header: { sectionHeader("Goals") }
             }
 
             if game.goals.isEmpty && game.status == .final && game.note.isEmpty && (game.nuScore + game.oppScore) > 0 {
-                Section("Goals") {
+                Section {
                     Text("No scoring summary available")
                         .font(.subheadline).foregroundStyle(.secondary)
-                }
+                        .listRowBackground(Color.cardFill)
+                } header: { sectionHeader("Goals") }
             }
 
             // Game info: plain small text, no box.
@@ -69,10 +75,11 @@ struct GameDetailView: View {
                     if !infoLine.isEmpty { Text(infoLine) }
                     if wx.weather != nil, let attr = wx.attribution {
                         AppleWeatherAttribution(attribution: attr)
+                            .environment(\.colorScheme, .dark)   // the white Apple Weather mark, for a dark background
                     }
                 }
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.white.opacity(0.8))   // sits on the team colors now
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
@@ -84,6 +91,11 @@ struct GameDetailView: View {
         .toolbarColorScheme(.dark, for: .navigationBar)   // light status bar and back button over the dark gradient
         .tint(Color.white)
         .task(id: game.id) { await wx.load(for: game) }
+    }
+
+    // Section titles are white, since the team colors now run the whole length of the page.
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title).foregroundStyle(Color.white.opacity(0.85))
     }
 
     // MARK: Score (sits directly on the team-color background, no box)
@@ -132,14 +144,28 @@ struct GameDetailView: View {
     }
 
     private func teamBadge(_ side: GameSide) -> some View {
-        VStack(spacing: 6) {
-            TeamMark(seo: side.seo, color: side.color, size: 48)
+        let markSize: CGFloat = scheme == .light ? 60 : 48
+        return VStack(spacing: 6) {
+            // Light mode: a white disc behind the logo, so a logo in the same color as the background (Indiana) still shows.
+            // Wide logos (Maryland's M) need extra room inside the circle.
+            TeamMark(seo: side.seo, color: side.color, size: markSize, backed: scheme == .light,
+                     backingOpacity: 0.75, backingPadding: 0.17)
             Text(side.short)
                 .font(.footnote.weight(side.isNU ? .bold : .regular))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
+            if !side.record.isEmpty {
+                Text(side.record)
+                    .font(.caption2)
+                    .monospacedDigit()
+                    .opacity(0.8)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
         }
         .frame(width: 80)
+        // Line the score up with the middle of the logo, not the middle of logo plus name.
+        .alignmentGuide(VerticalAlignment.center) { _ in markSize / 2 }
     }
 
     // "NCAA tournament · Final · shootout", "Q4 13:31", or the start time for an upcoming game.
@@ -176,43 +202,64 @@ struct GameDetailView: View {
         return g.scorer.isEmpty ? when : "\(team) · \(when)"
     }
 
-    private func periodRow(label: String, values: [String], secondary: Bool = false) -> some View {
+    // Top-left of the table: "FINAL" (bold) plus "/OT" or "/SO" after extra time, "LIVE" during the game.
+    private var cornerLabel: Text {
+        switch game.status {
+        case .final:
+            let extra = game.note == "shootout" ? "/SO" : game.note == "OT" ? "/OT" : ""
+            return Text("\(Text("FINAL").bold())\(extra)")
+        case .live: return Text("LIVE").bold()
+        case .upcoming: return Text("")
+        }
+    }
+
+    private func periodRow(label: Text, values: [String], secondary: Bool = false, total: String? = nil) -> some View {
         HStack {
-            Text(label)
+            label
                 .frame(width: 90, alignment: .leading)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             ForEach(Array(values.enumerated()), id: \.offset) { _, v in
                 Text(v).frame(maxWidth: .infinity)
             }
+            if let total {
+                Text(total)
+                    .fontWeight(secondary ? .regular : .semibold)
+                    .frame(width: 38)
+                    .overlay(alignment: .leading) { Rectangle().fill(Color.secondary.opacity(0.35)).frame(width: 0.5) }
+            }
         }
+        .font(secondary ? .caption : .subheadline)
         .foregroundStyle(secondary ? Color.secondary : Color.primary)
     }
 }
 
 // Background for the game detail page: the away team's color on the left blending into the home team's on the right,
-// darkened so white text reads, and fading into the normal grouped background below the score.
+// darkened so white text reads, all the way down the page.
 struct DetailBackground: View {
     let away: Color
     let home: Color
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        // Only a light touch of black, so each team's color stays recognizable on its own side.
-        let a = away.mix(with: .black, by: 0.12)
-        let h = home.mix(with: .black, by: 0.12)
-        let base = Color(.systemGroupedBackground)
-        ZStack {
-            LinearGradient(stops: [
-                .init(color: a, location: 0.0),
-                .init(color: a, location: 0.15),
-                .init(color: h, location: 0.85),
-                .init(color: h, location: 1.0),
-            ], startPoint: .leading, endPoint: .trailing)
-            LinearGradient(stops: [
-                .init(color: base.opacity(0), location: 0.0),
-                .init(color: base.opacity(0), location: 0.12),
-                .init(color: base, location: 0.38),
-            ], startPoint: .top, endPoint: .bottom)
+        // Only a light touch of black, so each team's color stays recognizable on its own side. Darker in dark mode.
+        let dim = scheme == .dark ? 0.4 : 0.12
+        let a = away.mix(with: .black, by: dim)
+        let h = home.mix(with: .black, by: dim)
+        let mid = a.mix(with: h, by: 0.5)
+        let deep = mid.mix(with: .black, by: 0.22)
+        // Away color on the left, home color on the right, drifting slowly (still when Reduce Motion is on).
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
+            MeshGradient(
+                width: 3, height: 3,
+                points: driftingMeshPoints(at: reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate),
+                colors: [
+                    a, mid, h,
+                    a.mix(with: .black, by: 0.12), deep, h.mix(with: .black, by: 0.12),
+                    a, mid, h,
+                ]
+            )
         }
         .ignoresSafeArea()
     }

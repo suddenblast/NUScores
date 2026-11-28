@@ -75,6 +75,8 @@ struct TeamMark: View {
     var ringWidth: CGFloat = 2
     var ring: Color = .white
     var backed = false
+    var backingOpacity = 1.0   // how solid the white disc is (1 = solid white)
+    var backingPadding = 0.12  // room between the logo and the disc edge, as a fraction of the size (wide logos need more)
 
     @ObservedObject private var cache = LogoCache.shared
     @Environment(\.colorScheme) private var scheme
@@ -84,9 +86,9 @@ struct TeamMark: View {
             Image(uiImage: logo)
                 .resizable()
                 .scaledToFit()
-                .padding(backed ? size * 0.12 : 0)
+                .padding(backed ? size * backingPadding : 0)
                 .frame(width: size, height: size)
-                .background { if backed { Circle().fill(Color.white) } }
+                .background { if backed { Circle().fill(Color.white.opacity(backingOpacity)) } }
         } else {
             Circle().fill(color)
                 .frame(width: size, height: size)

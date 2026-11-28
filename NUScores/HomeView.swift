@@ -4,6 +4,7 @@ struct HomeView: View {
     @StateObject private var store = GameStore()
     @State private var chosenSport: Sport?   // nil until the user taps the picker; then their choice wins
     @State private var seasonOverride: Int?   // nil = the current academic year
+    @State private var showSettings = false
     @Environment(\.colorScheme) private var scheme
 
     private static var currentSeason: Int { Game.academicYear(of: Date()) }
@@ -95,13 +96,22 @@ struct HomeView: View {
                     .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 0, trailing: 0))
                 } header: {
                     // The title is the first section's header: a row would be clipped by the list's rounded corner.
-                    Text("Northwestern")
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(Color(uiColor: .label))   // a plain color: .primary gets dimmed by the header style
-                        .textCase(nil)
-                        .padding(.leading, -16)   // lines up with the rows below, like the other headers
-                        .padding(.bottom, 2)
-                        .accessibilityAddTraits(.isHeader)
+                    HStack {
+                        Text("Northwestern")
+                            .font(.largeTitle.bold())
+                            .foregroundStyle(Color(uiColor: .label))   // a plain color: .primary gets dimmed by the header style
+                            .accessibilityAddTraits(.isHeader)
+                        Spacer()
+                        Button { showSettings = true } label: {
+                            Image(systemName: "gearshape").font(.title3)
+                                .foregroundStyle(Color(uiColor: .secondaryLabel))
+                        }
+                        .accessibilityLabel("Settings")
+                    }
+                    .textCase(nil)
+                    .padding(.leading, -16)   // lines up with the rows below, like the other headers
+                    .padding(.trailing, -16)
+                    .padding(.bottom, 2)
                 }
                 .listRowBackground(Color.clear)
                 if let err = store.errorText {
@@ -133,6 +143,7 @@ struct HomeView: View {
                     .sorted { ($0.start ?? .distantFuture) < ($1.start ?? .distantFuture) }) { UpcomingRow(game: $0) }
                 if store.loadedOnce && shown.isEmpty && store.errorText == nil {
                     Section { Text("No \(filter.rawValue.lowercased()) games in \(seasonLabel(season)) yet.").foregroundStyle(.secondary) }
+                        .listRowBackground(Color.cardFill)
                 }
             }
             .scrollContentBackground(.hidden)
@@ -141,6 +152,7 @@ struct HomeView: View {
             .background { HomeBackground() }
             .overlay { if !store.loadedOnce { ProgressView() } }
             .toolbar(.hidden, for: .navigationBar)   // the title is the first row of the list, so there is no empty bar above it
+            .sheet(isPresented: $showSettings) { SettingsView() }
             .navigationDestination(for: Game.self) { g in
                 let current = allGames.first { $0.id == g.id } ?? g
                 GameDetailView(game: current).id(current.changeKey)
@@ -162,6 +174,7 @@ struct HomeView: View {
                 ForEach(items) { g in
                     NavigationLink(value: g) { row(g) }
                 }
+                .listRowBackground(Color.cardFill)
             } header: {
                 Text(title).padding(.leading, -16)   // lines the header up with the card edge and the title
             }
@@ -336,16 +349,18 @@ struct HomeBackground: View {
         }
     }
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
-        MeshGradient(
-            width: 3, height: 3,
-            points: [
-                [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
-                [0.0, 0.5], [0.6, 0.4], [1.0, 0.5],
-                [0.0, 1.0], [0.5, 1.0], [1.0, 1.0],
-            ],
-            colors: colors
-        )
+        // Drifts slowly; still when Reduce Motion is on.
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
+            MeshGradient(
+                width: 3, height: 3,
+                points: driftingMeshPoints(at: reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate,
+                                           center: [0.6, 0.4]),
+                colors: colors
+            )
+        }
         .ignoresSafeArea()
     }
 }

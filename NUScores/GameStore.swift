@@ -19,6 +19,7 @@ final class GameStore: ObservableObject {
             }
             let dtos = try JSONDecoder().decode([GameDTO].self, from: data)
             games = dtos
+                .filter { Sport(rawValue: $0.sport) != nil } // never show a sport the app doesn't know as field hockey
                 .sorted { ($0.updated ?? .distantPast) > ($1.updated ?? .distantPast) }
                 .map(\.game)
             lastUpdated = Date()

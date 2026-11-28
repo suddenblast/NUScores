@@ -86,7 +86,7 @@ struct AppleWeatherAttribution: View {
             Text("·").font(.caption2)
             Link("Other data sources", destination: attribution.legalPageURL)
                 .font(.caption2)
-                .tint(Color.nuPurple)
+                .tint(Color.white)
             Spacer()
         }
     }

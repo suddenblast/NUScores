@@ -43,6 +43,8 @@ struct GameDTO: Decodable {
     let venueState: String?
     let nuHome: Bool?
     let neutral: Bool?
+    let nuRecord: String?   // missing in older Worker responses
+    let oppRecord: String?
 }
 
 private func parseISO(_ s: String?) -> Date? {
@@ -84,7 +86,9 @@ extension GameDTO {
             venueCity: venueCity ?? "",
             venueState: venueState ?? "",
             nuHome: nuHome ?? true,
-            neutral: neutral ?? false
+            neutral: neutral ?? false,
+            nuRecord: nuRecord ?? "",
+            oppRecord: oppRecord ?? ""
         )
     }
 
